@@ -1,9 +1,5 @@
 FROM ghcr.io/puppeteer/puppeteer:latest
 
-# Las variables de entorno le dicen a Puppeteer que use el Chrome instalado en esta imagen base
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome-stable
-
 # Cambiar a root para poder instalar cosas y crear directorios
 USER root
 
