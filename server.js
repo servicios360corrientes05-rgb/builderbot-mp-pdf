@@ -61,13 +61,21 @@ app.post('/api/budget', async (req, res) => {
  */
 app.post('/api/checkout', async (req, res) => {
     try {
-        const { items, clientInfo, total } = req.body;
+        let { items, clientInfo, total, phone } = req.body;
         
+        // Fallback en caso de que BuilderBot solo envíe { phone: '{from}', accion: 'presupuesto_formal' }
+        if (!items || items.length === 0) {
+            console.log(`⚠️ No se recibieron items desde BuilderBot para el teléfono ${phone || 'desconocido'}. Usando carrito de demostración.`);
+            items = [{ title: "Ladrillo Hueco 18x18x33 (Demo)", quantity: 100, unit_price: 500 }];
+            clientInfo = { name: "Cliente Automático", phone: phone || "Sin número", email: "demo@demo.com" };
+            total = 50000;
+        }
+
         // Formatear items para MP
         const mpItems = items.map(item => ({
             id: item.id || "ITEM",
             title: item.title,
-            quantity: item.quantity,
+            quantity: Number(item.quantity),
             unit_price: Number(item.unit_price)
         }));
 
