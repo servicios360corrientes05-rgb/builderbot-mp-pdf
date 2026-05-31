@@ -52,7 +52,7 @@ app.post('/api/budget', async (req, res) => {
 
     } catch (error) {
         console.error("Error generando presupuesto:", error);
-        res.status(500).json({ error: "Error interno al generar el documento." });
+        res.status(500).json({ error: "Error interno al generar el documento.", details: error.message, stack: error.stack });
     }
 });
 
