@@ -127,6 +127,71 @@ app.post('/api/webhook', async (req, res) => {
     res.status(200).send("OK");
 });
 
+/**
+ * 4. Endpoint Unificado para BuilderBot
+ * Genera el PDF, genera el link de MP, y devuelve todo en un campo "mensaje"
+ */
+app.post('/api/generate', async (req, res) => {
+    try {
+        let { items, clientInfo, total, phone } = req.body;
+        
+        // Fallback demo si no hay items
+        if (!items || items.length === 0) {
+            console.log(`⚠️ No se recibieron items desde BuilderBot para el teléfono ${phone || 'desconocido'}. Usando carrito demo.`);
+            items = [{ title: "Ladrillo Hueco 18x18x33 (Demo)", quantity: 100, unit_price: 500 }];
+            clientInfo = { name: "Cliente", phone: phone || "Sin número", email: "demo@demo.com" };
+            total = 50000;
+        }
+
+        // 1. Generar PDF
+        const timestamp = Date.now();
+        const pdfFileName = `presupuesto_${timestamp}.pdf`;
+        const pdfPath = path.join(pdfDir, pdfFileName);
+        
+        // Asignamos una subtotal genérica si no viene
+        const subtotal = total; 
+        
+        await generatePDF({
+            clientInfo, items, subtotal, discount: 0, shipping: 0, total, isFormalInvoice: true,
+            pdfPath, jpgPath: path.join(pdfDir, `presupuesto_${timestamp}.jpg`)
+        });
+
+        const host = req.headers.host;
+        const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+        const pdfUrl = `${protocol}://${host}/public/pdfs/${pdfFileName}`;
+
+        // 2. Generar Link MercadoPago
+        const mpItems = items.map(item => ({
+            id: item.id || "ITEM",
+            title: item.title,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price)
+        }));
+
+        const preference = new Preference(client);
+        const preferenceBody = {
+            items: mpItems,
+            payer: {
+                email: clientInfo.email || 'correo@ejemplo.com',
+                name: clientInfo.name || 'Cliente',
+            },
+            binary_mode: true
+        };
+
+        const result = await preference.create({ body: preferenceBody });
+        const mpUrl = result.init_point;
+
+        // 3. Devolver formato exacto para BuilderBot
+        const mensajeTexto = `¡Listo! Acá tenés tu presupuesto oficial 📄\n\n📥 *Descargar PDF:* ${pdfUrl}\n\n💳 *Link de pago seguro (MercadoPago):* ${mpUrl}\n\n¡Avisame cuando realices el pago así avanzamos con tu pedido!`;
+
+        res.json({ mensaje: mensajeTexto });
+
+    } catch (error) {
+        console.error("Error unificado:", error);
+        res.status(500).json({ mensaje: "Hubo un error al generar tu presupuesto. Por favor, intenta de nuevo o comunícate con un asesor." });
+    }
+});
+
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
