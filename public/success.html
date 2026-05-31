@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pago Exitoso</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; text-align: center; padding: 50px; background-color: #f8fafc; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); max-width: 500px; margin: 0 auto; }
+        .icon { font-size: 60px; color: #10b981; margin-bottom: 20px; }
+        h1 { color: #0f172a; margin-bottom: 10px; }
+        p { color: #475569; margin-bottom: 30px; }
+        .btn { display: inline-block; background-color: #2563eb; color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; }
+        .btn:hover { background-color: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">✅</div>
+        <h1>¡Pago Confirmado!</h1>
+        <p>Gracias por tu compra. Hemos registrado tu pago correctamente. En breve nos pondremos en contacto contigo para coordinar la entrega.</p>
+        <p>Ya puedes descargar tu Factura Oficial con el comprobante de pago.</p>
+        <!-- The URL will be injected dynamically or they can just close the window and get it via WhatsApp -->
+        <a href="#" class="btn" onclick="alert('En un entorno real, esto descargaría tu factura en PDF. Además, la hemos enviado a tu WhatsApp.')">Descargar Factura PDF</a>
+    </div>
+</body>
+</html>
