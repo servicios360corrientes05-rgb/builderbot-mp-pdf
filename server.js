@@ -185,25 +185,44 @@ app.post('/api/generate', async (req, res) => {
         const pdfUrl = `${protocol}://${host}/public/pdfs/${pdfFileName}`;
 
         // 2. Generar Link MercadoPago
-        const mpItems = items.map(item => ({
-            id: item.id || "ITEM",
-            title: item.title,
-            quantity: Number(item.quantity),
-            unit_price: Number(item.unit_price)
-        }));
+        let mpUrl = "";
+        try {
+            let mpItems = items.map(item => ({
+                id: String(item.id || "ITEM").substring(0, 256),
+                title: String(item.title).substring(0, 256),
+                quantity: Number(item.quantity) || 1,
+                unit_price: Number(item.unit_price) || 0
+            })).filter(item => item.unit_price > 0);
 
-        const preference = new Preference(client);
-        const preferenceBody = {
-            items: mpItems,
-            payer: {
-                email: clientInfo.email || 'correo@ejemplo.com',
-                name: clientInfo.name || 'Cliente',
-            },
-            binary_mode: true
-        };
+            if (mpItems.length === 0) {
+                if (total > 0) {
+                    mpItems.push({
+                        id: "TOTAL",
+                        title: "Presupuesto General",
+                        quantity: 1,
+                        unit_price: total
+                    });
+                } else {
+                    throw new Error("unit_price invalid o total 0");
+                }
+            }
 
-        const result = await preference.create({ body: preferenceBody });
-        const mpUrl = result.init_point;
+            const preference = new Preference(client);
+            const preferenceBody = {
+                items: mpItems,
+                payer: {
+                    email: clientInfo.email || 'correo@ejemplo.com',
+                    name: clientInfo.name || 'Cliente',
+                },
+                binary_mode: true
+            };
+
+            const result = await preference.create({ body: preferenceBody });
+            mpUrl = result.init_point;
+        } catch (mpError) {
+            console.error("Error generando MP:", mpError.message);
+            mpUrl = "⚠️ No disponible (los ítems tienen precio 0)";
+        }
 
         // 3. Devolver formato exacto para BuilderBot
         const mensajeTexto = `¡Listo! Acá tenés tu presupuesto oficial 📄\n\n📥 *Descargar PDF:* ${pdfUrl}\n\n💳 *Link de pago seguro (MercadoPago):* ${mpUrl}\n\n¡Avisame cuando realices el pago así avanzamos con tu pedido!`;
