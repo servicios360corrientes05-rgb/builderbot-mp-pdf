@@ -161,6 +161,7 @@ app.post('/api/generate', async (req, res) => {
 
         if (datos && datos.items) {
             items = datos.items.map(item => ({
+                userQuery: item.solicitado,
                 title: item.nombreOficial || item.solicitado,
                 quantity: item.cantidad,
                 unit_price: item.precioUnitario
@@ -218,6 +219,17 @@ app.post('/api/generate', async (req, res) => {
                 quantity: Number(item.quantity) || 1,
                 unit_price: Number(item.unit_price) || 0
             })).filter(item => item.unit_price > 0);
+
+            // Añadir el IVA como un ítem extra para que MercadoPago sume el Total Final
+            const iva = datos?.iva || 0;
+            if (iva > 0) {
+                mpItems.push({
+                    id: "IVA",
+                    title: "IVA (21%)",
+                    quantity: 1,
+                    unit_price: iva
+                });
+            }
 
             if (mpItems.length === 0) {
                 if (total > 0) {
