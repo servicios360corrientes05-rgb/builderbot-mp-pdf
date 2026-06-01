@@ -157,6 +157,11 @@ app.post('/api/generate', async (req, res) => {
         const pdfFileName = `presupuesto_${timestamp}.pdf`;
         const pdfPath = path.join(pdfDir, pdfFileName);
         
+        if (!Array.isArray(items)) {
+            console.error("⚠️ items no es un array! Forzando a array vacío. Valor recibido:", items);
+            items = [];
+        }
+
         // Si no mandan el total, lo calculamos sumando los items
         if (total === undefined) {
             total = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unit_price || 0)), 0);
@@ -207,7 +212,7 @@ app.post('/api/generate', async (req, res) => {
 
     } catch (error) {
         console.error("Error unificado:", error);
-        res.status(500).json({ mensaje: "Hubo un error al generar tu presupuesto. Por favor, intenta de nuevo o comunícate con un asesor." });
+        res.status(200).json({ mensaje: "🛠️ DIAGNÓSTICO: Error en el servidor al generar PDF. Detalles: " + error.message + " | Stack: " + String(error.stack).substring(0,200) });
     }
 });
 
