@@ -157,6 +157,16 @@ app.post('/api/generate', async (req, res) => {
         const pdfFileName = `presupuesto_${timestamp}.pdf`;
         const pdfPath = path.join(pdfDir, pdfFileName);
         
+        // Si no mandan el total, lo calculamos sumando los items
+        if (total === undefined) {
+            total = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unit_price || 0)), 0);
+        }
+        
+        // Si no mandan info del cliente, armamos una por defecto
+        if (!clientInfo) {
+            clientInfo = { name: "Consumidor Final", phone: phone || "-", email: "correo@ejemplo.com" };
+        }
+
         // Asignamos una subtotal genérica si no viene
         const subtotal = total; 
         
