@@ -144,6 +144,12 @@ app.post('/api/generate', async (req, res) => {
             }
         }
 
+        // A veces el usuario pone {datos} dentro de la propiedad "items" del JSON en BuilderBot.
+        // Si "items" resultó ser un objeto que adentro tiene "items", entonces es el objeto "datos" camuflado.
+        if (items && typeof items === 'object' && !Array.isArray(items) && items.items) {
+            datos = items;
+        }
+
         // Si BuilderBot envía el objeto "datos" directamente (evitando usar IA para Salida Estructurada)
         if (typeof datos === 'string') {
             try {
