@@ -2,9 +2,9 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const { getHtmlTemplate } = require('./htmlTemplate');
 
-async function generatePDF({ clientInfo, items, subtotal, discount, shipping, total, isFormalInvoice, pdfPath, jpgPath }) {
+async function generatePDF({ clientInfo, items, subtotal, discount, shipping, total, iva, isFormalInvoice, pdfPath, jpgPath }) {
     const htmlContent = getHtmlTemplate({
-        clientInfo, items, subtotal, discount, shipping, total, isFormalInvoice
+        clientInfo, items, subtotal, discount, shipping, total, iva, isFormalInvoice
     });
 
     // En Railway con la imagen docker, las variables de entorno le dicen a puppeteer donde está el ejecutable.

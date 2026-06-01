@@ -1,4 +1,4 @@
-function getHtmlTemplate({ clientInfo, items, subtotal, discount, shipping, total, isFormalInvoice }) {
+function getHtmlTemplate({ clientInfo, items, subtotal, discount, shipping, total, iva, isFormalInvoice }) {
     // Generar las filas de la tabla iterando sobre los items
     const rows = items.map(item => `
         <tr>
@@ -238,6 +238,12 @@ function getHtmlTemplate({ clientInfo, items, subtotal, discount, shipping, tota
             <div class="summary-row">
                 <span>Flete / Envío:</span>
                 <span>$${shipping.toLocaleString('es-AR')}</span>
+            </div>
+            ` : ''}
+            ${iva > 0 ? `
+            <div class="summary-row">
+                <span>IVA (21%):</span>
+                <span>$${iva.toLocaleString('es-AR')}</span>
             </div>
             ` : ''}
             <div class="summary-row total-neto">

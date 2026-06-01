@@ -133,7 +133,7 @@ app.post('/api/webhook', async (req, res) => {
  */
 app.post('/api/generate', async (req, res) => {
     try {
-        let { items, clientInfo, total, phone } = req.body;
+        let { items, clientInfo, total, phone, datos } = req.body;
         
         // BuilderBot a veces envía el array como un string JSON
         if (typeof items === 'string') {
@@ -142,6 +142,24 @@ app.post('/api/generate', async (req, res) => {
             } catch (e) {
                 console.error("No se pudo parsear items como JSON:", items);
             }
+        }
+
+        // Si BuilderBot envía el objeto "datos" directamente (evitando usar IA para Salida Estructurada)
+        if (typeof datos === 'string') {
+            try {
+                datos = JSON.parse(datos);
+            } catch (e) {
+                console.error("Error parseando datos:", e);
+            }
+        }
+
+        if (datos && datos.items) {
+            items = datos.items.map(item => ({
+                title: item.nombreOficial || item.solicitado,
+                quantity: item.cantidad,
+                unit_price: item.precioUnitario
+            }));
+            total = datos.total || total;
         }
 
         // Fallback demo si no hay items
@@ -163,7 +181,7 @@ app.post('/api/generate', async (req, res) => {
         }
 
         // Si no mandan el total, lo calculamos sumando los items
-        if (total === undefined) {
+        if (total === undefined || total === null) {
             total = items.reduce((sum, item) => sum + (Number(item.quantity) * Number(item.unit_price || 0)), 0);
         }
         
@@ -172,11 +190,12 @@ app.post('/api/generate', async (req, res) => {
             clientInfo = { name: "Consumidor Final", phone: phone || "-", email: "correo@ejemplo.com" };
         }
 
-        // Asignamos una subtotal genérica si no viene
-        const subtotal = total; 
+        // Asignamos subtotal e IVA si vienen de datos
+        const subtotal = datos?.subtotal || total; 
+        const iva = datos?.iva || 0;
         
         await generatePDF({
-            clientInfo, items, subtotal, discount: 0, shipping: 0, total, isFormalInvoice: true,
+            clientInfo, items, subtotal, discount: 0, shipping: 0, total, iva, isFormalInvoice: true,
             pdfPath, jpgPath: path.join(pdfDir, `presupuesto_${timestamp}.jpg`)
         });
 
