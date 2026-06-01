@@ -135,6 +135,15 @@ app.post('/api/generate', async (req, res) => {
     try {
         let { items, clientInfo, total, phone } = req.body;
         
+        // BuilderBot a veces envía el array como un string JSON
+        if (typeof items === 'string') {
+            try {
+                items = JSON.parse(items);
+            } catch (e) {
+                console.error("No se pudo parsear items como JSON:", items);
+            }
+        }
+
         // Fallback demo si no hay items
         if (!items || items.length === 0) {
             console.log(`⚠️ No se recibieron items desde BuilderBot para el teléfono ${phone || 'desconocido'}. Usando carrito demo.`);
