@@ -272,9 +272,6 @@ app.post('/api/generate', async (req, res) => {
         const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
         const pdfUrl = `${protocol}://${host}/public/pdfs/${pdfFileName}`;
 
-        // Notificar a Apps Script que el PDF ya fue generado para transicionar el estado
-        await notificarAppsScript(phone, "pdf_generado", { pdfUrl });
-
         // 2. Generar Link MercadoPago
         let mpUrl = "";
         try {
@@ -329,11 +326,14 @@ app.post('/api/generate', async (req, res) => {
             mpUrl = result.init_point;
         } catch (mpError) {
             console.error("Error generando MP:", mpError.message);
-            mpUrl = "⚠️ No disponible (los ítems tienen precio 0)";
+            mpUrl = "";
         }
 
+        // Notificar a Apps Script que el PDF y el Link de Pago fueron creados (NUEVO v5.5 - diferido para enviar mpUrl)
+        await notificarAppsScript(phone, "pdf_generado", { pdfUrl, mpUrl });
+
         // 3. Devolver formato exacto para BuilderBot
-        const mensajeTexto = `¡Listo! Acá tenés tu presupuesto oficial 📄\n\n📥 *Descargar PDF:* ${pdfUrl}\n\n💳 *Link de pago seguro (MercadoPago):* ${mpUrl}\n\n¡Avisame cuando realices el pago así avanzamos con tu pedido!`;
+        const mensajeTexto = `¡Listo! Acá tenés tu presupuesto oficial 📄\n\n📥 *Descargar PDF:* ${pdfUrl}\n\n¿Te parece bien? ¿Querés que te envíe el link de pago seguro para realizar la compra? Escribí *sí, quiero el link de pago* y te lo envío. 😊`;
 
         res.json({ mensaje: mensajeTexto });
 
