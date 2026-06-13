@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { MercadoPagoConfig, Preference } = require('mercadopago');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 const { generatePDF } = require('./pdfGenerator');
 const path = require('path');
 const fs = require('fs');
@@ -13,6 +13,40 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Inicializar Mercado Pago
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
+
+// Función para notificar a Google Apps Script sobre cambios de estado
+async function notificarAppsScript(phone, accion, extra = {}) {
+    const url = process.env.APPS_SCRIPT_URL || "https://script.google.com/macros/s/AKfycbROlxMaTkndiRkEYecF6m6O2m9SEx3w8O3r8coo90X3uITHBAI2lUq28BktUWGeS_Q/exec";
+    
+    // Normalizar teléfono
+    let cleanPhone = phone ? String(phone).replace(/\D/g, "") : "";
+    if (cleanPhone.startsWith("549") && cleanPhone.length === 13) {
+        cleanPhone = "54" + cleanPhone.substring(3);
+    }
+
+    const payload = {
+        phone: cleanPhone,
+        accion: accion,
+        ...extra
+    };
+
+    console.log(`📡 Notificando a Apps Script (${accion}) para teléfono ${cleanPhone}...`);
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        const text = await response.text();
+        console.log(`📡 Respuesta de Apps Script [${response.status}]:`, text);
+        return response.ok;
+    } catch (error) {
+        console.error(`❌ Error notificando a Apps Script:`, error.message);
+        return false;
+    }
+}
 
 // Asegurar que exista la carpeta public/pdfs
 const pdfDir = path.join(__dirname, 'public', 'pdfs');
@@ -98,6 +132,7 @@ app.post('/api/checkout', async (req, res) => {
                 failure: `${origin}/failure.html`,
                 pending: `${origin}/pending.html`
             },
+            external_reference: phone,
             // auto_return: "approved",
             binary_mode: true, // Pagos instantáneos (tarjetas/dinero en cuenta)
             notification_url: `${origin}/api/webhook`
@@ -116,14 +151,41 @@ app.post('/api/checkout', async (req, res) => {
  * 3. Webhook de Mercado Pago
  */
 app.post('/api/webhook', async (req, res) => {
-    const paymentId = req.query.id || req.body?.data?.id;
-    console.log("🔔 Webhook recibido de Mercado Pago! ID de Pago:", paymentId);
-    
-    // Aquí puedes:
-    // 1. Consultar la API de MP para verificar que el pago está 'approved'
-    // 2. Marcar la fila en Google Sheets como "PAGADO"
-    // 3. (Opcional) Llamar a BuilderBot para enviar mensaje de WhatsApp al cliente
+    try {
+        const paymentId = req.query.id || req.body?.data?.id;
+        console.log("🔔 Webhook recibido de Mercado Pago! ID de Pago:", paymentId);
+        
+        if (paymentId) {
+            // Consultar los detalles del pago a MercadoPago
+            const payment = new Payment(client);
+            const paymentDetails = await payment.get({ id: paymentId });
+            
+            console.log("💸 Detalles del pago obtenidos:", {
+                status: paymentDetails.status,
+                status_detail: paymentDetails.status_detail,
+                external_reference: paymentDetails.external_reference,
+                transaction_amount: paymentDetails.transaction_amount
+            });
 
+            const phone = paymentDetails.external_reference;
+            const status = paymentDetails.status;
+
+            if (status === 'approved' && phone) {
+                console.log(`✅ Pago aprobado de $${paymentDetails.transaction_amount} para el teléfono ${phone}`);
+                // Notificar a Google Apps Script
+                await notificarAppsScript(phone, "registrar_pago", {
+                    paymentId: paymentId,
+                    amount: paymentDetails.transaction_amount
+                });
+            } else {
+                console.log(`ℹ️ Pago con estado [${status}] no requiere registrar_pago o no posee teléfono.`);
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error procesando webhook de Mercado Pago:", error.message);
+    }
+    
+    // Responder 200 siempre a MercadoPago para evitar reintentos
     res.status(200).send("OK");
 });
 
@@ -210,6 +272,9 @@ app.post('/api/generate', async (req, res) => {
         const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
         const pdfUrl = `${protocol}://${host}/public/pdfs/${pdfFileName}`;
 
+        // Notificar a Apps Script que el PDF ya fue generado para transicionar el estado
+        await notificarAppsScript(phone, "pdf_generado", { pdfUrl });
+
         // 2. Generar Link MercadoPago
         let mpUrl = "";
         try {
@@ -244,6 +309,10 @@ app.post('/api/generate', async (req, res) => {
                 }
             }
 
+            const host = req.headers.host;
+            const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+            const origin = `${protocol}://${host}`;
+
             const preference = new Preference(client);
             const preferenceBody = {
                 items: mpItems,
@@ -251,7 +320,9 @@ app.post('/api/generate', async (req, res) => {
                     email: clientInfo.email || 'correo@ejemplo.com',
                     name: clientInfo.name || 'Cliente',
                 },
-                binary_mode: true
+                external_reference: phone,
+                binary_mode: true,
+                notification_url: `${origin}/api/webhook`
             };
 
             const result = await preference.create({ body: preferenceBody });
