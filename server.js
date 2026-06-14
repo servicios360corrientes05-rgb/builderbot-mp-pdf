@@ -330,7 +330,7 @@ app.post('/api/generate', async (req, res) => {
         }
 
         // Notificar a Apps Script que el PDF y el Link de Pago fueron creados (NUEVO v5.5 - diferido para enviar mpUrl)
-        await notificarAppsScript(phone, "pdf_generado", { pdfUrl, mpUrl });
+        await notificarAppsScript(phone, "pdf_generado", { pdfUrl, mpUrl, datos: datos });
 
         // 3. Devolver formato exacto para BuilderBot
         const mensajeTexto = `¡Listo! Acá tenés tu presupuesto oficial 📄\n\n📥 *Descargar PDF:* ${pdfUrl}\n\n¿Te parece bien? ¿Querés que te envíe el link de pago seguro para realizar la compra? Escribí *sí, quiero el link de pago* y te lo envío. 😊`;
